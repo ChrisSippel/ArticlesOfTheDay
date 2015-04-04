@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<style>
+		th, td {
+	   border: 1px solid black;
+	   width: 50px;
+	   height: 50px;
+	}
+	</style>
+
+	<script>
+	var dayDictionary = {};
+	
+		function NumberOfDays(year, month) {
+		var d = new Date(year, month, 0);
+		return d.getDate();
+	}
+	
+	function LoadCalendar() {
+		var httpRequest = new XMLHttpRequest();
+		httpRequest.onreadystatechange = function() {
+		if (httpRequest.readyState == 4 && httpRequest.status == 200) {
+				var foundArticles = JSON.parse(httpRequest.responseText);
+				
+				for (i = 0; i < foundArticles.length; i++){
+					var dateObject = new Date(foundArticles[i].PostDate);
+					dayDictionary[dateObject.getUTCDate()] = foundArticles[i];
+				}
+				
+				var calendar = document.getElementById("Calendar");
+				var daysInCurrentMonth = NumberOfDays(today.getFullYear(), today.getMonth() + 1);
+		
+				var currentRow;
+				for (var i = 0; i < daysInCurrentMonth;){
+					if (i % 7 == 0){
+						currentRow = calendar.insertRow(i / 7);
+					}
+					
+					for (var j = 0; j < 7 && i < daysInCurrentMonth; j++){
+						var currentCell = currentRow.insertCell(j);
+						var calendarDate = new Date(today.getFullYear(), today.getMonth(), i + 1);
+						var day = calendarDate.getUTCDate();
+						var articleOfTheDay = dayDictionary[day];
+						
+						if (articleOfTheDay != null){
+							currentCell.innerHTML = ++i + "<br/>" + "<br/>" + articleOfTheDay["Poster"];
+							currentCell.setAttribute("onclick", "LoadArticle(" + day + ");");
+						}
+						else{
+							currentCell.innerHTML = ++i + "<br/>" + "<br/>";
+							currentCell.setAttribute("onclick", "DisplayCreateArticle(" + day + ");");
+						}
+					}
+				}
+			}
+		}
+		
+		var today = new Date();
+		var url = "http://localhost:49358/api/Article/ArticlesForMonth/" + today.getFullYear() + "/" + (today.getMonth() + 1);
+		httpRequest.open("GET", url, false);
+		httpRequest.send();
+	}
+	
+	function LoadArticle(day){
+		var outputDiv = document.getElementById("outputDiv");
+		outputDiv.style.visibility='visible';
+		outputDiv.style.display = 'inline';
+		
+		var inputDiv = document.getElementById("inputDiv");
+		inputDiv.style.visibility='hidden';
+		inputDiv.style.display='none';
+	
+		var posterName = document.getElementById("outputPosterName");
+		posterName.innerHTML = dayDictionary[day].Poster;
+
+		var title = document.getElementById("outputTitle");
+		title.innerHTML = dayDictionary[day].Title;
+		
+		var summary = document.getElementById("outputSummary");
+		summary.innerHTML = dayDictionary[day].Summary;
+	}
+	
+	function DisplayCreateArticle(day){
+		var outputDiv = document.getElementById("outputDiv");
+		outputDiv.style.visibility='hidden';
+		outputDiv.style.display = 'none';
+		
+		var inputDiv = document.getElementById("inputDiv");
+		inputDiv.style.visibility='visible';
+		inputDiv.style.display='inline';
+		
+		var inputDate = document.getElementById("inputDate");
+		inputDate.value = day;
+	}
+	
+	function SubmitArticleCreation(){
+		var article = {};
+		
+		var iputPoster = document.getElementById("inputPosterName");
+		var inputTitle = document.getElementById("inputTitle");
+		var inputSummary = document.getElementById("inputSummary");
+		var inputDay = document.getElementById("inputDate");
+		
+		article["Title"] = inputTitle.value;
+		article["Poster"] = iputPoster.value;
+		article["Summary"] = inputSummary.value;
+		
+		var today = new Date();
+		var calendarDate = new Date(today.getFullYear(), today.getMonth(), inputDay.value);
+		article["PostDate"] = calendarDate;
+		
+		var url = "http://localhost:49358/api/Article/AddArticle";
+		var post = new XMLHttpRequest();
+		post.onreadystatechange = function() {
+			if (post.readyState == 4){
+				if (post.status == 409){
+					alert('Too slow Joe! Someone already has that date!');
+					location.reload();
+				}
+				else{
+					alert('Successfully reserved!');
+					location.reload();
+				}
+			}
+		}
+
+		post.open("POST", url, false);
+		post.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+		var json = JSON.stringify(article);
+		
+		post.send(json);
+	}
+	
+	</script>
+</head>
+
+<body onload="LoadCalendar()">
+<div>
+	<div id="outputDiv" style="float:left;max-width:50%;display:none">
+		<h2>Poster</h2>
+		<p id="outputPosterName"></p>
+		
+		<h2>Title</h2>
+		<p id="outputTitle"></p>
+		
+		<h2>Summary</h2>
+		<p id="outputSummary"></p>
+	</div>
+	<div id="inputDiv" style="float:left;max-width:50%;display:none">
+			<h2>Poster</h2>
+			<input type="text" name="poster" id="inputPosterName"></input>
+			
+			<h2>Title</h2>
+			<input type="text" name="title" id="inputTitle"></input>
+			
+			<h2>Summary</h2>
+			<textarea type="textarea" name="summary" id="inputSummary" style="max-width:98%"></textarea>
+			
+			<input type="text" id="inputDate" name="day" style="visibility:hidden"></input>
+			
+			<br/ >
+			<br/ >
+			<br/ >
+			
+			<button onclick="SubmitArticleCreation();">Submit Article</button>
+	</div>
+	<table id="Calendar" style="width:50%;margin-left:50%;">
+	</table>
+</div>
+</body>
+
+</html>
